@@ -1,0 +1,119 @@
+---
+title: "Occupancy Detection - Craig Hardie"
+output:
+  pdf_document: default
+  word_document: default
+---
+#  Craig Hardie 
+
+#  Occupancy Detection
+
+Using the Occupancy Detection dataset from https://archive.ics.uci.edu/ml/datasets/Occupancy+Detection+ I am going to determine the most relevant factors in determining whether a room is occupied.
+
+###Setup
+First the project requires the following libraries to run the project corrplot, MASS, and randomForest. The following code will install the packages if required and load them ready for use in the project. 
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r loadlib, echo=T, results='hide', message=F, warning=F}
+#install the packages if required
+if(!require(corrplot)) install.packages(corrplot)
+if(!require(MASS)) install.packages(MASS)
+if(!require(randomForest)) install.packages(randomForest)
+#load the libraries
+library(corrplot)
+library(MASS)
+library(randomForest)
+
+```
+
+###Data Preparation
+The dataset is already split into test and two training sets as it is delivered, so that will be the split I will use for my project.  It is required to convert all the datasets using the command data.matrix so it is all numeric values and then I concatenated the two training sets together using the rbind command.
+
+```{r}
+training<-read.csv("data/datatraining.txt")
+training<-data.matrix(training)
+
+trainframe<-data.frame(training)
+test<-read.csv("data/datatest.txt")
+test2<-read.csv("data/datatest2.txt")
+test<-data.matrix(test)
+test2<-data.matrix(test2)
+testframe1<-data.frame(test)
+testframe2<-data.frame(test2)
+
+testframe<-rbind(testframe1,testframe2)
+
+```
+
+###Exploratory Analysis
+Running the command sum(is.na(trainframe)) on the trainframe and again same command on the testframe shows there are no null values and we can get the number of rows in the test and training sets with the nrow and ncol commands and the column names.
+
+```{r}
+sum(is.na(trainframe))
+sum(is.na(testframe))
+nrow(testframe)
+nrow(trainframe)
+ncol(trainframe)
+colnames(trainframe)
+```
+Running the head(trainframe) command will show the first rows of the training data which would suggest that Occupancy would be the target data of our experiements.
+
+```{r}
+head(trainframe)
+
+
+```
+Running the following commands on the training data will produce a correlation matrix which would suggest that the most likely significators of a room being occupied is Light with CO2 and Temperature could also be of significance. 
+```{r}
+cortf<-cor(trainframe)
+
+corrplot(cortf)
+```
+
+
+###Supervised Learning Experiment - Predicting Occupancy
+
+###Linear Determinant Analysis
+The experiment I intend to carry out is to determine the likelihood of a room being occupied based on some other factors and determine the most important factors in predicting this.  
+To this end I will be carrying out Group Means that there is a far greater descrepancy for Occupancy based on Light than any other with CO2 also having a deciding factor in predicting the Occupancy. This confirms what the exploratory analysis had suggested might be the case. 
+
+```{r}
+lda.fit<-lda(Occupancy ~ ., data=trainframe)
+lda.fit
+
+```
+ 
+```{r}
+lda.predict<-predict(lda.fit, testframe)
+table(lda.predict$class , testframe$Occupancy)
+mean(table(lda.predict$class == testframe$Occupancy))
+```
+###Random Forest
+I am going to use Random Forest analysis to carry out a similar analysis to I did with LDA and determine what the deciding factors could be in whether a room is occupied. 
+```{r results="hide"}
+rt.fit<-randomForest(Occupancy ~., data=trainframe)
+conf<-rt.fit$confusion
+conf
+
+trainResults<-predict(rt.fit, trainframe)
+table(Predictions=trainResults, Actual=trainframe$Occupancy)
+
+testResults<-predict(rt.fit, testframe)
+table(Predictions=testResults, Actual=testframe$Occupancy)
+```
+
+```{r }
+
+
+
+importance(rt.fit)
+
+```
+
+This confirms what the LDA analysis suggested which is that Light and Co2 are highly significant in determining whether a room is occupied with Light being the most significant factor.  Temparature is also highly significant in this analysis.
+
+The outcomes of the LDA and Random Forest have largely confirmed what the initial exploration suggested which is that Light is the most significant predictor and that Co2 and Temparature are also significant.
+
+
